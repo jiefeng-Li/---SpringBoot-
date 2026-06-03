@@ -16,6 +16,28 @@ export const getResumesPageByUserId = (params) => {
 }
 
 export const addResume = (resume, avatarFile) => {
+  return request({
+    url: '/resume',
+    method: 'post',
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
+    data: buildResumeMultipartData(resume, avatarFile)
+  })
+}
+
+export const updateResume = (id, resume, avatarFile) => {
+    return request({
+      url: `/resume/${id}`,
+      method: 'put',
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      data: buildResumeMultipartData(resume, avatarFile)
+    })
+}
+
+const buildResumeMultipartData = (resume, avatarFile) => {
   const formData = new FormData()
 
   // DTO 作为 JSON part 发送，便于后端按对象接收
@@ -28,22 +50,7 @@ export const addResume = (resume, avatarFile) => {
     formData.append('avatar', avatarFile)
   }
 
-  return request({
-    url: '/resume',
-    method: 'post',
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    },
-    data: formData
-  })
-}
-
-export const updateResume = (id, data) => {
-    return request({
-      url: `/resume/${id}`,
-      method: 'put',
-      data
-    })
+  return formData
 }
 
 export const deleteResume = (id) => {

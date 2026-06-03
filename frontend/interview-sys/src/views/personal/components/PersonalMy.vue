@@ -75,14 +75,14 @@
         </el-container>
       </el-main>
       <el-aside>
-        <el-card
+        <!-- <el-card
           style="height: 400px; width: 80%; margin: 0 auto; margin-top: 20px"
         >
           <p v-for="o in 4" :key="o" class="text item">
             {{ "List item " + o }}
           </p>
-        </el-card></el-aside
-      >
+        </el-card> -->
+      </el-aside>
     </el-container>
   </div>
 </template>

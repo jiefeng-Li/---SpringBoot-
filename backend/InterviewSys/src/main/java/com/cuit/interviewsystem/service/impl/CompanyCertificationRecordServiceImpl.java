@@ -58,24 +58,31 @@ public class CompanyCertificationRecordServiceImpl extends ServiceImpl<CompanyCe
     /**
      * 企业管理员进行认证企业
      * 提交当前登录的企业管理员，以及其所属的公司的认证记录
-     * @param ccrad
-     * @return
+     * @param ccrad 企业认证记录添加DTO对象，包含企业认证的相关信息
+     * @return 返回新添加的企业认证记录ID，如果添加失败则返回0
      */
     @Override
     public long addCompanyCertificationRecord(CompanyCertificationRecordAddDto ccrad) {
+        // 获取当前登录用户信息
         User curUser = jwtUtil.parseLoginUser();
+        // 检查当前用户是否已注册企业，如果未注册则抛出异常
         ThrowUtil.throwIfTrue(curUser.getCompanyId() == null, ErrorEnum.NOT_FOUND_ERROR, "请先注册企业");
+        // 检查是否已有待审核的认证记录，如果有则抛出异常
         ThrowUtil.throwIfTrue(recordMapper.exists(new LambdaQueryWrapper<CompanyCertificationRecord>()
                         .eq(CompanyCertificationRecord::getCompanyId, curUser.getCompanyId())
                         .eq(CompanyCertificationRecord::getStatus,
                                 CompanyCertificationStatusEnum.REVIEWING.getStatus())
                         .eq(CompanyCertificationRecord::getIsDeleted, 0)),
                 ErrorEnum.PARAMS_ERROR, "有未被审核的认证记录");
+        // 创建新的企业认证记录对象
         CompanyCertificationRecord newRecord = new CompanyCertificationRecord();
         BeanUtils.copyProperties(ccrad, newRecord);
+        // 设置管理员ID和公司ID
         newRecord.setAdminId(curUser.getUserId());
         newRecord.setCompanyId(curUser.getCompanyId());
+        // 对认证记录进行校验
         objectCheck(newRecord);
+        // 插入新记录到数据库，并返回记录ID，如果插入失败则返回0
         return recordMapper.insert(newRecord) == 0 ? 0 : newRecord.getId();
     }
 

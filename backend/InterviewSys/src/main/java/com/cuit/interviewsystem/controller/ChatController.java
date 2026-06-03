@@ -4,6 +4,8 @@ package com.cuit.interviewsystem.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cuit.interviewsystem.annotation.AuthCheck;
 import com.cuit.interviewsystem.common.Result;
+import com.cuit.interviewsystem.exception.BusinessException;
+import com.cuit.interviewsystem.exception.ErrorEnum;
 import com.cuit.interviewsystem.handler.ChatSessionManager;
 import com.cuit.interviewsystem.model.dto.ChatMessageDto;
 import com.cuit.interviewsystem.model.dto.chat.SystemMessagePushDto;
@@ -70,12 +72,17 @@ public class ChatController {
     }
 
     @PostMapping("/msg/system/push")
-    @Operation(summary = "系统管理员发送系统消息并推送")
-    @AuthCheck(roles = {UserRoleEnum.SYS_ADMIN})
+    @Operation(summary = "发送系统消息并推送")
+    @AuthCheck(roles = {UserRoleEnum.SYS_ADMIN, UserRoleEnum.RECRUITER})
     public Result<Integer> pushSystemMessage(@Valid @RequestBody SystemMessagePushDto dto) {
-        Long adminUserId = Long.parseLong(jwtUtil.getLoginUserInfo(JWTUtil.ELEMENT.USER_ID));
+        Long loginUserId = Long.parseLong(jwtUtil.getLoginUserInfo(JWTUtil.ELEMENT.USER_ID));
+        UserRoleEnum role = UserRoleEnum.getRole(jwtUtil.getLoginUserInfo(JWTUtil.ELEMENT.ROLE));
 
-        List<Long> targetUserIds = resolveTargetUserIds(dto, adminUserId);
+        if (UserRoleEnum.RECRUITER.equals(role) && (dto.getSendToAll() == null || dto.getSendToAll())) {
+            throw new BusinessException(ErrorEnum.UNAUTHORIZED, "招聘者仅支持定向发送系统消息");
+        }
+
+        List<Long> targetUserIds = resolveTargetUserIds(dto, loginUserId);
         if (targetUserIds.isEmpty()) {
             return Result.success(0, "没有可推送的目标用户");
         }
@@ -83,7 +90,7 @@ public class ChatController {
         int successCount = 0;
         for (Long targetUserId : targetUserIds) {
             ChatMessageDto msg = new ChatMessageDto();
-            msg.setSendId(adminUserId);
+            msg.setSendId(loginUserId);
             msg.setReceiveId(targetUserId);
             msg.setContent(dto.getContent().trim());
             msg.setMsgType(1);

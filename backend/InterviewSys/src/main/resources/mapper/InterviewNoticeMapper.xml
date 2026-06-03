@@ -7,45 +7,105 @@
     <resultMap id="BaseResultMap" type="com.cuit.interviewsystem.model.entity.InterviewNotice">
             <id property="id" column="id" />
             <result property="jobApplicationId" column="job_application_id" />
-            <result property="intervieweeId" column="interviewee_id"/>
             <result property="companyId" column="company_id"/>
-            <result property="interviewTime" column="interview_time" />
+            <result property="jobSeekerId" column="job_seeker_id"/>
+            <result property="creatorId" column="creator_id"/>
+            <result property="interviewType" column="interview_type"/>
+            <result property="interviewStartTime" column="interview_start_time" />
+            <result property="interviewEndTime" column="interview_end_time" />
             <result property="interviewAddress" column="interview_address" />
+            <result property="rtcPlatform" column="rtc_platform" />
+            <result property="rtcRoomId" column="rtc_room_id" />
+            <result property="rtcRoomName" column="rtc_room_name" />
+            <result property="rtcJoinUrl" column="rtc_join_url" />
+            <result property="rtcPassword" column="rtc_password" />
             <result property="comment" column="comment" />
+            <result property="status" column="status" />
+            <result property="candidateReplyReason" column="candidate_reply_reason" />
+            <result property="candidateReplyTime" column="candidate_reply_time" />
+            <result property="cancelReason" column="cancel_reason" />
             <result property="isDeleted" column="is_deleted" />
             <result property="createTime" column="create_time" />
             <result property="updateTime" column="update_time" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,job_application_id,interview_time,interview_address,comment,is_deleted,
-        create_time,update_time
+        id,job_application_id,company_id,job_seeker_id,creator_id,interview_type,
+        interview_start_time,interview_end_time,interview_address,rtc_platform,rtc_room_id,
+        rtc_room_name,rtc_join_url,rtc_password,comment,status,candidate_reply_reason,
+        candidate_reply_time,cancel_reason,is_deleted,create_time,update_time
     </sql>
     <select id="getNoticeVoList" resultType="com.cuit.interviewsystem.model.vo.InterviewNoticeVo">
         select
-            notice.*, company.company_name as company_name
+            notice.*,
+            company.company_name as company_name,
+            seeker.username as job_seeker_name,
+            creator.username as creator_name
         from t_interview_notice notice
             LEFT JOIN t_company company on notice.company_id = company.company_id
+            LEFT JOIN t_user seeker on notice.job_seeker_id = seeker.user_id
+            LEFT JOIN t_user creator on notice.creator_id = creator.user_id
         where notice.is_deleted = 0
         <if test="dto.companyId != null">
             and notice.company_id = #{dto.companyId}
         </if>
-        <if test="dto.intervieweeId != null">
-            and notice.interviewee_id = #{dto.intervieweeId}
+        <if test="dto.jobSeekerId != null">
+            and notice.job_seeker_id = #{dto.jobSeekerId}
         </if>
-        <if test="dto.start != null">
-            and notice.interview_time >= #{dto.start}
+        <if test="dto.status != null">
+            and notice.status = #{dto.status}
         </if>
-        <if test="dto.end != null">
-            and notice.interview_time &lt;= #{dto.end}
+        <if test="dto.interviewType != null">
+            and notice.interview_type = #{dto.interviewType}
         </if>
-        order by notice.update_time desc
+        <if test="dto.startTime != null">
+            and notice.interview_start_time &gt;= #{dto.startTime}
+        </if>
+        <if test="dto.endTime != null">
+            and notice.interview_end_time &lt;= #{dto.endTime}
+        </if>
+        order by notice.interview_start_time desc
     </select>
     <select id="selectNoticeVoById" resultType="com.cuit.interviewsystem.model.vo.InterviewNoticeVo">
         select
-        notice.*, company.company_name as company_name
+        notice.*, company.company_name as company_name,
+        seeker.username as job_seeker_name,
+        creator.username as creator_name
         from t_interview_notice notice
         LEFT JOIN t_company company on notice.company_id = company.company_id
+        LEFT JOIN t_user seeker on notice.job_seeker_id = seeker.user_id
+        LEFT JOIN t_user creator on notice.creator_id = creator.user_id
         where notice.is_deleted = 0 and notice.id = #{noticeId}
+    </select>
+
+    <select id="countUserConflict" resultType="java.lang.Integer">
+        select count(1)
+        from t_interview_notice notice
+            left join t_interview_notice_participant participant
+                on notice.id = participant.interview_notice_id and participant.is_deleted = 0
+        where notice.is_deleted = 0
+          and notice.status in (0, 1)
+          and notice.interview_start_time &lt; #{endTime}
+          and notice.interview_end_time &gt; #{startTime}
+          and notice.id &lt;&gt; ifnull(#{excludeId}, -1)
+          and (
+            notice.job_seeker_id = #{userId}
+            or participant.user_id = #{userId}
+          )
+    </select>
+
+    <select id="selectParticipantsByNoticeId" resultType="com.cuit.interviewsystem.model.vo.InterviewParticipantVo">
+        select
+            participant.user_id as userId,
+            user.username as username,
+            user.role as role,
+            user.avatar_url as avatarUrl,
+            participant.participant_type as participantType,
+            participant.is_primary as 'primary'
+        from t_interview_notice_participant participant
+            left join t_user user on participant.user_id = user.user_id
+        where participant.is_deleted = 0
+          and participant.interview_notice_id = #{noticeId}
+        order by participant.participant_type desc, participant.is_primary desc, participant.id asc
     </select>
 </mapper>

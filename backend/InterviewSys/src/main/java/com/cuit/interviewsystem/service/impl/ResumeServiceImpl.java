@@ -157,6 +157,23 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, Resume>
     }
 
     @Override
+    public ResumeVo getDefaultResumeByUserId(Long userId) {
+        ThrowUtil.throwIfTrue(userId == null, ErrorEnum.PARAMS_ERROR, "用户id不能为空");
+        Resume defaultResume;
+        try {
+            defaultResume = resumeMapper.selectOne(new LambdaQueryWrapper<Resume>()
+                    .eq(Resume::getUserId, userId)
+                    .eq(Resume::getIsDefault, 1)
+                    .eq(Resume::getIsDeleted, 0)
+                    .orderByDesc(Resume::getUpdateTime)
+                    .last("limit 1"));
+        } catch (TooManyResultsException e) {
+            throw new BusinessException(ErrorEnum.SYSTEM_ERROR, "存在多个默认简历");
+        }
+        return defaultResume == null ? null : getResumeById(defaultResume.getId());
+    }
+
+    @Override
     @Transactional
     public void updateResume(AddResumeDto resume, Long id, MultipartFile avatar) {
         Resume target = resumeMapper.selectById(id);
@@ -165,15 +182,17 @@ public class ResumeServiceImpl extends ServiceImpl<ResumeMapper, Resume>
         educationMapper.delete(new LambdaQueryWrapper<ResumeEducation>().eq(ResumeEducation::getResumeId, id));
         experienceMapper.delete(new LambdaQueryWrapper<ResumeExperience>().eq(ResumeExperience::getResumeId, id));
         projectMapper.delete(new LambdaQueryWrapper<ResumeProject>().eq(ResumeProject::getResumeId, id));
-        aliOSSUtil.deleteFile(target.getAvatar());
         BeanUtils.copyProperties(resume, target);
-        String avatarUrl = null;
-        try {
-            avatarUrl = aliOSSUtil.uploadPictureAndCheck(avatar, target.getUserId().toString());
-        } catch (Exception e) {
-            throw new BusinessException(ErrorEnum.PARAMS_ERROR, "上传头像失败");
+        if (avatar != null && !avatar.isEmpty()) {
+            String avatarUrl;
+            try {
+                avatarUrl = aliOSSUtil.uploadPictureAndCheck(avatar, target.getUserId().toString());
+            } catch (Exception e) {
+                throw new BusinessException(ErrorEnum.PARAMS_ERROR, "上传头像失败");
+            }
+            aliOSSUtil.deleteFile(target.getAvatar());
+            target.setAvatar(avatarUrl);
         }
-        target.setAvatar(avatarUrl);
         saveResumeInfo(resume, id);
         resumeMapper.update(target, new LambdaUpdateWrapper<Resume>().eq(Resume::getId, id));
     }

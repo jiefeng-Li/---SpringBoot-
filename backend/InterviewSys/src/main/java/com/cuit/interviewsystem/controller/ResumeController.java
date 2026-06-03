@@ -87,7 +87,9 @@ public class ResumeController {
 
     @PutMapping("/{id}")
     @AuthCheck
-    public Result<Integer> updateResume(@Valid @RequestBody AddResumeDto resume, @PathVariable Long id, @RequestPart("avatar") MultipartFile avatar) {
+    public Result<Integer> updateResume(@Valid @RequestPart("resume") AddResumeDto resume,
+                                        @PathVariable Long id,
+                                        @RequestPart(value = "avatar", required = false) MultipartFile avatar) {
         redisUtil.delete("resumeId=" + id);
         resumeService.updateResume(resume, id, avatar);
         return Result.success(null, "更新成功");

@@ -30,12 +30,15 @@
               :hidden="unreadMessageCount <= 0"
             />
           </el-dropdown-item>
-          <el-dropdown-item @click="router.push('/personal/settings')">
-            <el-icon><Comment /></el-icon>系统设置
+          <el-dropdown-item
+            @click="router.push('/personal/interview')"
+            v-if="role == 'JOB_SEEKER'"
+          >
+            <el-icon><Comment /></el-icon>面试通知
           </el-dropdown-item>
-          <el-dropdown-item @click="router.push('/personal/help')">
+          <!-- <el-dropdown-item @click="router.push('/personal/help')">
             <el-icon><QuestionFilled /></el-icon>帮助中心
-          </el-dropdown-item>
+          </el-dropdown-item> -->
           <el-divider style="margin: 12px 0" />
           <el-dropdown-item @click="handleLogout"
             ><el-icon><CloseBold /></el-icon

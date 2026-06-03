@@ -8,6 +8,16 @@ export const getJobPositionList = (data) => {
   })
 }
 
+export const getRecommendedJobPositionList = (limit = 8) => {
+  return request({
+    method: 'get',
+    url: '/job/recommendations',
+    params: {
+      limit,
+    },
+  })
+}
+
 export const getJobPositionById = (id) => {
   return request({
     method: 'get',

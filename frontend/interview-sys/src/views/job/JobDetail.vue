@@ -29,9 +29,14 @@
             <div class="salary">
               {{ formatSalary(jobDetail.minSalary, jobDetail.maxSalary) }}
             </div>
-            <button class="apply-btn" type="button" @click="openApplyDialog">
-              立即投递
-            </button>
+            <div class="action-group">
+              <button class="mock-btn" type="button" @click="openMockInterview">
+                AI模拟面试
+              </button>
+              <button class="apply-btn" type="button" @click="openApplyDialog">
+                立即投递
+              </button>
+            </div>
           </div>
         </div>
 
@@ -280,6 +285,20 @@ const openApplyDialog = async () => {
   await loadResumeOptions();
 };
 
+const openMockInterview = () => {
+  if (!jobDetail.value) {
+    ElMessage.warning("职位信息异常，暂无法进入模拟面试");
+    return;
+  }
+
+  router.push({
+    path: "/meeting/mock-interview",
+    query: {
+      jobId: String(route.params.id || ""),
+    },
+  });
+};
+
 const submitApplication = async () => {
   await applyFormRef.value?.validate();
 
@@ -387,6 +406,13 @@ onMounted(() => {
   min-width: 220px;
 }
 
+.action-group {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .salary {
   font-size: 28px;
   font-weight: 700;
@@ -402,6 +428,20 @@ onMounted(() => {
   padding: 10px 20px;
   font-size: 16px;
   cursor: pointer;
+}
+
+.mock-btn {
+  border: 1px solid #1677ff;
+  background: #fff;
+  color: #1677ff;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.mock-btn:hover {
+  background: #f0f7ff;
 }
 
 .apply-btn:hover {

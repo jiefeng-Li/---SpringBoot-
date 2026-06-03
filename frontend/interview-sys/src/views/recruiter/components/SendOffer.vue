@@ -72,16 +72,21 @@
           min-width="220"
           show-overflow-tooltip
         />
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-if="row.status === 4"
-              type="primary"
-              link
-              @click.stop="openDetail(row)"
-            >
-              发送 Offer
-            </el-button>
+            <template v-if="row.status === 4">
+              <el-button type="primary" link @click.stop="openDetail(row)">
+                发送 Offer
+              </el-button>
+              <el-button
+                type="danger"
+                link
+                :loading="rejectLoadingId === row.id"
+                @click.stop="rejectAndNotify(row)"
+              >
+                淘汰并通知
+              </el-button>
+            </template>
             <span v-else>-</span>
           </template>
         </el-table-column>
@@ -227,6 +232,7 @@ import {
   getJobApplicationList,
   reviewJobApplicationBatch,
 } from "@/api/application";
+import { pushSystemMessage } from "@/api/chat";
 import { getSentOfferList, sendOffer } from "@/api/offer";
 import { useUserStore } from "@/stores/user";
 
@@ -250,6 +256,7 @@ const detailVisible = ref(false);
 const currentRow = ref(null);
 const submitLoading = ref(false);
 const cleanLoading = ref(false);
+const rejectLoadingId = ref(null);
 
 const offerForm = reactive({
   expectedEntryDate: "",
@@ -459,6 +466,53 @@ const submitOffer = async () => {
     ElMessage.error(e?.message || "发送 Offer 失败");
   } finally {
     submitLoading.value = false;
+  }
+};
+
+const rejectAndNotify = async (row) => {
+  const applicationId = row?.id;
+  const jobSeekerId = row?.userId;
+  if (!applicationId || !jobSeekerId) {
+    ElMessage.error("投递记录字段不完整，无法执行淘汰操作");
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确认将“${row.jobSeekerName || "该求职者"}”的投递标记为已淘汰，并发送通知消息？`,
+      "确认淘汰",
+      {
+        type: "warning",
+        confirmButtonText: "确认",
+        cancelButtonText: "取消",
+      },
+    );
+  } catch {
+    return;
+  }
+
+  rejectLoadingId.value = applicationId;
+  try {
+    await reviewJobApplicationBatch({
+      ids: [applicationId],
+      status: 7,
+      remarks: "面试后不合适，已淘汰",
+    });
+
+    const jobTitle = row?.jobTitle || "该职位";
+    await pushSystemMessage({
+      content: `您的投递（${jobTitle}）已更新为“已淘汰”。感谢您的参与，祝您求职顺利。`,
+      sendToAll: false,
+      targetUserIds: [jobSeekerId],
+      includeSelf: false,
+    });
+
+    ElMessage.success("已淘汰并发送通知");
+    await fetchList();
+  } catch (e) {
+    ElMessage.error(e?.message || "淘汰操作失败");
+  } finally {
+    rejectLoadingId.value = null;
   }
 };
 

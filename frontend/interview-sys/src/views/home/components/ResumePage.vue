@@ -55,7 +55,6 @@
               <el-button type="primary" :icon="Edit" @click="goToCreateResume"
                 >新建</el-button
               >
-              <el-button type="primary" :icon="Upload">上传</el-button>
             </div>
             <div style="height: calc(100% - 120px)">
               <el-scrollbar @end-reached="handleEndReached">
@@ -112,7 +111,12 @@
                         />
                       </el-tooltip>
 
-                      <el-button type="primary" :icon="Edit" circle />
+                      <el-button
+                        type="primary"
+                        :icon="Edit"
+                        circle
+                        @click="goToEdit(item)"
+                      />
                       <el-popconfirm
                         class="box-item"
                         title="是否确认删除？"
@@ -173,6 +177,15 @@ const totalCnt = ref(0);
 
 const goToCreateResume = () => {
   router.push("/resume/create");
+};
+
+const goToEdit = (resume) => {
+  const id = resume.id ?? resume.resumeId;
+  if (!id) {
+    ElMessage.warning("该简历缺少ID，无法编辑");
+    return;
+  }
+  router.push({ path: "/resume/create", query: { resumeId: id } });
 };
 
 const formatDate = (dateValue) => {

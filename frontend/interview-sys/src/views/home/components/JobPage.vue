@@ -272,9 +272,10 @@ import { Search } from "@element-plus/icons-vue";
 import { getJobPositionList } from "@/api/job";
 import { useUserStore } from "@/stores";
 import { ElMessage } from "element-plus";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 // import { formatDate } from "@/utils/format";
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 
 const jobDetail = ref({
@@ -345,7 +346,10 @@ const keyword = ref("");
 
 const queryAndJump = async () => {
   pagination.value.pageNum = 1;
-  await fetchJobs(false); // 传入 false 表示替换数据
+  await router.replace({
+    path: "/job",
+    query: keyword.value ? { keyword: keyword.value } : {},
+  });
 };
 
 const handleJobDetail = (item) => {
@@ -358,6 +362,9 @@ const handleJobDetail = (item) => {
 const fetchJobs = async (isAppend = false) => {
   loading.value = true;
   try {
+    const routeKeyword = route.query.keyword;
+    const searchKeyword =
+      keyword.value || (routeKeyword ? String(routeKeyword) : "");
     // 构建请求参数
     const params = {
       pageNum: pagination.value.pageNum,
@@ -384,8 +391,8 @@ const fetchJobs = async (isAppend = false) => {
     if (jobConditions.value.scale) {
       params.scale = jobConditions.value.scale;
     }
-    if (keyword.value) {
-      params.keyword = keyword.value;
+    if (searchKeyword) {
+      params.keyword = searchKeyword;
     }
 
     // 调用API获取数据
@@ -403,8 +410,10 @@ const fetchJobs = async (isAppend = false) => {
         jobList.value = newList;
 
         // 如果有职位数据且当前没有选中的职位，默认选中第一个
-        if (jobList.value.length > 0 && !selectedJob.value) {
+        if (jobList.value.length > 0) {
           selectedJob.value = jobList.value[0];
+        } else {
+          selectedJob.value = null;
         }
       }
     } else {
@@ -455,6 +464,16 @@ const handleApply = () => {
   }
 };
 
+watch(
+  () => route.query.keyword,
+  (newKeyword) => {
+    keyword.value = newKeyword ? String(newKeyword) : "";
+    pagination.value.pageNum = 1;
+    fetchJobs(false);
+  },
+  { immediate: true },
+);
+
 // 监听筛选条件变化
 // watch(
 //   () => [
@@ -471,10 +490,6 @@ const handleApply = () => {
 //   },
 //   { deep: true },
 // );
-
-onMounted(() => {
-  fetchJobs();
-});
 </script>
 
 <style lang="scss" scoped>

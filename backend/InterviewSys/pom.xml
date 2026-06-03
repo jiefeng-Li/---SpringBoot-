@@ -140,6 +140,13 @@
         </dependency>
         <!--endregion-->
 
+        <!-- region 腾讯TRTC 生成UserSig -->
+        <dependency>
+            <groupId>com.github.tencentyun</groupId>
+            <artifactId>tls-sig-api-v2</artifactId>
+            <version>2.0</version>
+        </dependency>
+        <!--endregion-->
 
         <!-- region flying-saucer(html->pdf) https://mvnrepository.com/artifact/org.xhtmlrenderer/flying-saucer-core -->
         <dependency>

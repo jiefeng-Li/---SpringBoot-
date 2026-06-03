@@ -21,6 +21,15 @@
               <template #header>
                 <div class="card-header">
                   <span>基本信息</span>
+                  <el-button
+                    type="primary"
+                    plain
+                    size="small"
+                    :loading="summaryAiState.loading"
+                    @click="optimizeResumeSection('SUMMARY')"
+                  >
+                    AI 优化简介
+                  </el-button>
                 </div>
               </template>
               <el-row :gutter="20">
@@ -113,13 +122,19 @@
                 </el-col>
               </el-row>
               <el-form-item label="个人简介/求职意向" prop="summary">
-                <el-input
-                  v-model="resumeForm.summary"
-                  type="textarea"
-                  :rows="4"
-                  placeholder="请输入个人简介或求职意向"
-                />
+                <div class="summary-editor">
+                  <el-input
+                    v-model="resumeForm.summary"
+                    type="textarea"
+                    :rows="4"
+                    placeholder="请输入个人简介或求职意向"
+                  />
+                </div>
               </el-form-item>
+              <ResumeAiSuggestionBox
+                :loading="summaryAiState.loading"
+                :text="summaryAiState.text"
+              />
             </el-card>
 
             <!-- 教育经历 -->
@@ -140,6 +155,17 @@
                 <el-divider content-position="left"
                   >教育经历 {{ index + 1 }}</el-divider
                 >
+                <div class="module-actions">
+                  <el-button
+                    type="primary"
+                    plain
+                    size="small"
+                    :loading="educationAiStates[index]?.loading"
+                    @click="optimizeResumeSection('EDUCATION', index)"
+                  >
+                    AI 优化该经历
+                  </el-button>
+                </div>
                 <el-row :gutter="20">
                   <el-col :span="12">
                     <el-form-item
@@ -205,6 +231,10 @@
                     placeholder="请输入教育经历描述"
                   />
                 </el-form-item>
+                <ResumeAiSuggestionBox
+                  :loading="educationAiStates[index]?.loading"
+                  :text="educationAiStates[index]?.text"
+                />
                 <el-button
                   type="danger"
                   size="small"
@@ -233,6 +263,17 @@
                 <el-divider content-position="left"
                   >工作经历 {{ index + 1 }}</el-divider
                 >
+                <div class="module-actions">
+                  <el-button
+                    type="primary"
+                    plain
+                    size="small"
+                    :loading="experienceAiStates[index]?.loading"
+                    @click="optimizeResumeSection('EXPERIENCE', index)"
+                  >
+                    AI 优化该经历
+                  </el-button>
+                </div>
                 <el-row :gutter="20">
                   <el-col :span="12">
                     <el-form-item
@@ -286,6 +327,10 @@
                     placeholder="请输入工作描述"
                   />
                 </el-form-item>
+                <ResumeAiSuggestionBox
+                  :loading="experienceAiStates[index]?.loading"
+                  :text="experienceAiStates[index]?.text"
+                />
                 <el-button
                   type="danger"
                   size="small"
@@ -314,6 +359,17 @@
                 <el-divider content-position="left"
                   >项目经历 {{ index + 1 }}</el-divider
                 >
+                <div class="module-actions">
+                  <el-button
+                    type="primary"
+                    plain
+                    size="small"
+                    :loading="projectAiStates[index]?.loading"
+                    @click="optimizeResumeSection('PROJECT', index)"
+                  >
+                    AI 优化该项目
+                  </el-button>
+                </div>
                 <el-row :gutter="20">
                   <el-col :span="12">
                     <el-form-item
@@ -356,6 +412,10 @@
                     placeholder="请输入项目描述"
                   />
                 </el-form-item>
+                <ResumeAiSuggestionBox
+                  :loading="projectAiStates[index]?.loading"
+                  :text="projectAiStates[index]?.text"
+                />
                 <el-button
                   type="danger"
                   size="small"
@@ -438,7 +498,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
   Plus,
@@ -449,14 +509,19 @@ import {
   Download,
 } from "@element-plus/icons-vue";
 import { useUserStore } from "@/stores/user";
+import ResumeAiSuggestionBox from "./resume/ResumeAiSuggestionBox.vue";
+import { useResumeAiOptimization } from "./resume/useResumeAiOptimization";
 import {
   getResumeTemplates,
   previewUnsavedResume,
   addResume,
   getResumeDownload,
+  getResumeById,
+  updateResume,
 } from "@/api/resume";
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 const resumeFormRef = ref(null);
 const templates = ref([]);
@@ -489,6 +554,16 @@ const resumeForm = reactive({
   projects: [],
 });
 
+const {
+  summaryAiState,
+  educationAiStates,
+  experienceAiStates,
+  projectAiStates,
+  addModuleState,
+  removeModuleState,
+  optimizeResumeSection,
+} = useResumeAiOptimization(resumeForm);
+
 // 表单验证规则
 const rules = {
   name: [{ required: true, message: "请输入姓名", trigger: "blur" }],
@@ -519,41 +594,46 @@ const addEducation = () => {
     timeRange: [],
     description: "",
   });
+  addModuleState("EDUCATION");
 };
 
 // 删除教育经历
 const removeEducation = (index) => {
   resumeForm.educations.splice(index, 1);
+  removeModuleState("EDUCATION", index);
 };
 
 // 添加工作经历
 const addExperience = () => {
   resumeForm.experiences.push({
-    companyName: "",
+    company: "",
     position: "",
     timeRange: [],
     description: "",
   });
+  addModuleState("EXPERIENCE");
 };
 
 // 删除工作经历
 const removeExperience = (index) => {
   resumeForm.experiences.splice(index, 1);
+  removeModuleState("EXPERIENCE", index);
 };
 
 // 添加项目经历
 const addProject = () => {
   resumeForm.projects.push({
     name: "",
-    role: "",
     timeRange: [],
     description: "",
   });
+  addModuleState("PROJECT");
 };
 
 // 删除项目经历
 const removeProject = (index) => {
   resumeForm.projects.splice(index, 1);
+  removeModuleState("PROJECT", index);
 };
 
 // 处理头像文件选择
@@ -655,24 +735,33 @@ const saveResume = async () => {
   try {
     await resumeFormRef.value.validate();
     saveLoading.value = true;
-
     const avatarInput = document.querySelector(
       '.avatar-uploader input[type="file"]',
     );
     const avatarFile =
       avatarInput && avatarInput.files[0] ? avatarInput.files[0] : null;
-    if (!avatarFile) {
-      ElMessage.warning("请先上传头像");
-      return;
-    }
 
     const requestData = buildResumePayload();
-    const res = await addResume(requestData, avatarFile);
-    if (res?.data?.code === 200) {
-      ElMessage.success("简历保存成功");
-      router.push("/resume");
+
+    if (route.query.resumeId) {
+      // 编辑模式
+      const id = route.query.resumeId;
+      const res = await updateResume(id, requestData, avatarFile);
+      if (res?.data?.code === 200) {
+        ElMessage.success("简历更新成功");
+        router.push("/resume");
+      } else {
+        ElMessage.error(res?.data?.message || "更新简历失败");
+      }
     } else {
-      ElMessage.error(res?.data?.message || "保存简历失败");
+      // 新增模式
+      const res = await addResume(requestData, avatarFile);
+      if (res?.data?.code === 200) {
+        ElMessage.success("简历保存成功");
+        router.push("/resume");
+      } else {
+        ElMessage.error(res?.data?.message || "保存简历失败");
+      }
     }
   } catch (error) {
     if (error !== false) {
@@ -680,6 +769,72 @@ const saveResume = async () => {
     }
   } finally {
     saveLoading.value = false;
+  }
+};
+
+const fillFormFromVo = (vo) => {
+  if (!vo) return;
+  resumeForm.userId = vo.userId || resumeForm.userId;
+  resumeForm.templateId = vo.templateId || resumeForm.templateId;
+  resumeForm.name = vo.name || "";
+  resumeForm.gender = vo.gender ?? resumeForm.gender;
+  resumeForm.birthday = vo.birthday ? String(vo.birthday).slice(0, 10) : "";
+  resumeForm.phone = vo.phone || "";
+  resumeForm.email = vo.email || "";
+  resumeForm.address = vo.address || "";
+  resumeForm.avatar = vo.avatar || null;
+  resumeForm.city = vo.city || "";
+  resumeForm.summary = vo.summary || "";
+  resumeForm.isDefault = vo.isDefault ?? 0;
+
+  // clear arrays then fill
+  resumeForm.educations = [];
+  resumeForm.experiences = [];
+  resumeForm.projects = [];
+
+  if (Array.isArray(vo.educations)) {
+    vo.educations.forEach((e) => {
+      resumeForm.educations.push({
+        school: e.school || "",
+        major: e.major || "",
+        degree: e.degree || "",
+        timeRange: [
+          e.startDate ? String(e.startDate).slice(0, 10) : "",
+          e.endDate ? String(e.endDate).slice(0, 10) : "",
+        ],
+        description: e.description || "",
+      });
+      addModuleState("EDUCATION");
+    });
+  }
+
+  if (Array.isArray(vo.experiences)) {
+    vo.experiences.forEach((ex) => {
+      resumeForm.experiences.push({
+        company: ex.company || "",
+        position: ex.position || "",
+        timeRange: [
+          ex.startDate ? String(ex.startDate).slice(0, 10) : "",
+          ex.endDate ? String(ex.endDate).slice(0, 10) : "",
+        ],
+        description: ex.description || "",
+      });
+      addModuleState("EXPERIENCE");
+    });
+  }
+
+  if (Array.isArray(vo.projects)) {
+    vo.projects.forEach((p) => {
+      resumeForm.projects.push({
+        name: p.name || "",
+        timeRange: [
+          p.startDate ? String(p.startDate).slice(0, 10) : "",
+          p.endDate ? String(p.endDate).slice(0, 10) : "",
+        ],
+        description: p.description || "",
+      });
+      addModuleState("PROJECT");
+    });
   }
 };
 
@@ -694,10 +849,6 @@ const saveAndExportResume = async () => {
     );
     const avatarFile =
       avatarInput && avatarInput.files[0] ? avatarInput.files[0] : null;
-    if (!avatarFile) {
-      ElMessage.warning("请先上传头像");
-      return;
-    }
 
     // 先保存简历
     const saveRes = await addResume(buildResumePayload(), avatarFile);
@@ -776,6 +927,22 @@ const fetchTemplates = async () => {
 // 组件挂载时获取模板列表
 onMounted(() => {
   fetchTemplates();
+  // 如果是编辑模式，获取已保存的简历并填充表单
+  const resumeId = route.query.resumeId;
+  if (resumeId) {
+    (async () => {
+      try {
+        const res = await getResumeById(resumeId);
+        if (res?.data?.code === 200 && res?.data?.data) {
+          fillFormFromVo(res.data.data);
+        } else {
+          ElMessage.error("获取简历数据失败");
+        }
+      } catch (err) {
+        ElMessage.error("获取简历数据失败");
+      }
+    })();
+  }
   document.body.style.overflow = "hidden";
 });
 
@@ -843,6 +1010,12 @@ onBeforeUnmount(() => {
             padding: 10px;
             background-color: #f9f9f9;
             border-radius: 4px;
+
+            .module-actions {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 12px;
+            }
           }
         }
 
@@ -894,6 +1067,39 @@ onBeforeUnmount(() => {
     padding: 20px;
     background-color: #fff;
     overflow: auto;
+  }
+
+  .summary-editor {
+    width: 100%;
+  }
+
+  .ai-suggestion-box {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #dbe9ff;
+    background: linear-gradient(135deg, #f7fbff 0%, #eef6ff 100%);
+    box-shadow: 0 6px 18px rgba(64, 158, 255, 0.08);
+
+    .ai-suggestion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+
+      span {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f2d3d;
+      }
+    }
+
+    .ai-suggestion-content {
+      white-space: pre-wrap;
+      line-height: 1.7;
+      color: #3a4a5a;
+      font-size: 14px;
+    }
   }
 }
 </style>

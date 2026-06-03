@@ -49,6 +49,9 @@
         <if test="dto.end != null">
             and binding.create_time &lt;= #{dto.end}
         </if>
+        <if test="dto.companyId != null">
+            and binding.company_id = #{dto.companyId}
+        </if>
         ORDER BY binding.create_time DESC
     </select>
     <select id="getBindingPageByUserId" resultType="com.cuit.interviewsystem.model.vo.BindingRequestVo">

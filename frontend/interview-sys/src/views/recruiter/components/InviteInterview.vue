@@ -2,7 +2,7 @@
   <div class="invite-interview">
     <el-card shadow="never" class="tip-card">
       <el-alert
-        title="当前仅展示状态为“初筛通过”的投递记录，发送面试通知后将自动更新为“面试中”。"
+        title="仅展示状态为“初筛通过”的投递记录。创建成功后，后端会自动生成面试预约并将投递推进到“面试中”。"
         type="info"
         :closable="false"
       />
@@ -52,51 +52,127 @@
     <el-dialog
       v-model="detailVisible"
       title="投递详情与面试邀约"
-      width="760px"
+      width="860px"
       destroy-on-close
     >
       <template v-if="currentRow">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="投递ID">{{
-            currentRow.id || "-"
-          }}</el-descriptions-item>
-          <el-descriptions-item label="求职者">{{
-            currentRow.jobSeekerName || "-"
-          }}</el-descriptions-item>
-          <el-descriptions-item label="职位">{{
-            currentRow.jobTitle || "-"
-          }}</el-descriptions-item>
+          <el-descriptions-item label="投递ID">
+            {{ currentRow.id || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="求职者">
+            {{ currentRow.jobSeekerName || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="职位">
+            {{ currentRow.jobTitle || "-" }}
+          </el-descriptions-item>
           <el-descriptions-item label="当前状态">
             <el-tag type="success">初筛通过</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="投递时间">{{
-            currentRow.applyTime || "-"
-          }}</el-descriptions-item>
-          <el-descriptions-item label="投递备注">{{
-            currentRow.remarks || "-"
-          }}</el-descriptions-item>
+          <el-descriptions-item label="投递时间">
+            {{ currentRow.applyTime || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="投递备注">
+            {{ currentRow.remarks || "-" }}
+          </el-descriptions-item>
         </el-descriptions>
 
         <div class="invite-form-wrap">
           <div class="section-title">填写面试信息</div>
-          <el-form :model="inviteForm" label-width="100px">
+          <el-form :model="inviteForm" label-width="110px">
+            <el-form-item label="面试类型" required>
+              <el-radio-group v-model="inviteForm.interviewType">
+                <el-radio :label="1">线上面试</el-radio>
+                <el-radio :label="0">线下面试</el-radio>
+              </el-radio-group>
+            </el-form-item>
+
             <el-form-item label="面试时间" required>
               <el-date-picker
-                v-model="inviteForm.interviewTime"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="请选择面试日期"
-                style="width: 220px"
+                v-model="inviteForm.interviewTimeRange"
+                type="datetimerange"
+                range-separator="至"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间"
+                value-format="YYYY-MM-DDTHH:mm:ss"
+                format="YYYY-MM-DD HH:mm"
+                style="width: 420px"
               />
             </el-form-item>
-            <el-form-item label="面试地址" required>
-              <el-input
-                v-model="inviteForm.interviewAddress"
-                placeholder="请输入详细面试地址"
-                maxlength="200"
-                show-word-limit
-              />
+
+            <el-form-item label="面试官" required>
+              <el-select
+                v-model="inviteForm.interviewerIds"
+                multiple
+                filterable
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="请选择本公司面试官"
+                :loading="interviewerLoading"
+                style="width: 420px"
+              >
+                <el-option
+                  v-for="item in interviewerOptions"
+                  :key="item.userId"
+                  :label="`${item.username}（${item.userId}）`"
+                  :value="item.userId"
+                />
+              </el-select>
             </el-form-item>
+
+            <template v-if="inviteForm.interviewType === 1">
+              <el-form-item label="会议平台" required>
+                <el-select
+                  v-model="inviteForm.rtcPlatform"
+                  style="width: 220px"
+                  placeholder="请选择会议平台"
+                >
+                  <el-option label="腾讯云 TRTC" :value="1" />
+                  <el-option label="ZEGO 即构" :value="2" />
+                  <el-option label="Agora" :value="3" />
+                  <el-option label="Jitsi" :value="4" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="房间号">
+                <el-input value="系统自动生成（使用面试记录ID）" disabled />
+              </el-form-item>
+              <el-form-item label="会议名称">
+                <el-input
+                  v-model="inviteForm.rtcRoomName"
+                  placeholder="例如：前端岗位一面"
+                  maxlength="128"
+                  show-word-limit
+                />
+              </el-form-item>
+              <el-form-item label="加入链接">
+                <el-input
+                  v-model="inviteForm.rtcJoinUrl"
+                  placeholder="可选，留空将使用系统内嵌入会页"
+                  maxlength="500"
+                  show-word-limit
+                />
+              </el-form-item>
+              <el-form-item label="入会口令">
+                <el-input
+                  v-model="inviteForm.rtcPassword"
+                  placeholder="如有口令可填写"
+                  maxlength="100"
+                  show-word-limit
+                />
+              </el-form-item>
+            </template>
+
+            <template v-else>
+              <el-form-item label="面试地址" required>
+                <el-input
+                  v-model="inviteForm.interviewAddress"
+                  placeholder="请输入详细面试地址"
+                  maxlength="255"
+                  show-word-limit
+                />
+              </el-form-item>
+            </template>
+
             <el-form-item label="备注">
               <el-input
                 v-model="inviteForm.comment"
@@ -104,7 +180,7 @@
                 :rows="4"
                 maxlength="500"
                 show-word-limit
-                placeholder="可填写面试说明、联系人等信息"
+                placeholder="可填写面试说明、联系人、设备要求等信息"
               />
             </el-form-item>
           </el-form>
@@ -128,8 +204,9 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { getJobApplicationList, reviewJobApplication } from "@/api/application";
+import { getJobApplicationList } from "@/api/application";
 import { addInterviewNotice } from "@/api/interview";
+import { getCompanyUserList } from "@/api/company";
 import { useUserStore } from "@/stores/user";
 
 const userStore = useUserStore();
@@ -148,12 +225,42 @@ const total = ref(0);
 const detailVisible = ref(false);
 const currentRow = ref(null);
 const submitLoading = ref(false);
+const interviewerLoading = ref(false);
+const interviewerOptions = ref([]);
 
 const inviteForm = reactive({
-  interviewTime: "",
+  interviewType: 1,
+  interviewTimeRange: [],
+  interviewerIds: [],
   interviewAddress: "",
+  rtcPlatform: 1,
+  rtcRoomId: "",
+  rtcRoomName: "",
+  rtcJoinUrl: "",
+  rtcPassword: "",
   comment: "",
 });
+
+const fetchInterviewers = async () => {
+  if (!query.companyId) {
+    return;
+  }
+
+  interviewerLoading.value = true;
+  try {
+    const { data } = await getCompanyUserList({
+      pageNum: 1,
+      pageSize: 100,
+      role: "RECRUITER",
+    });
+    const page = data?.data || data || {};
+    interviewerOptions.value = page.records || page.list || [];
+  } catch (e) {
+    ElMessage.error(e?.message || "获取公司面试官失败");
+  } finally {
+    interviewerLoading.value = false;
+  }
+};
 
 const fetchList = async () => {
   if (!query.companyId) {
@@ -186,8 +293,15 @@ const handleSizeChange = () => {
 };
 
 const resetInviteForm = () => {
-  inviteForm.interviewTime = "";
+  inviteForm.interviewType = 1;
+  inviteForm.interviewTimeRange = [];
+  inviteForm.interviewerIds = [];
   inviteForm.interviewAddress = "";
+  inviteForm.rtcPlatform = 1;
+  inviteForm.rtcRoomId = "";
+  inviteForm.rtcRoomName = "";
+  inviteForm.rtcJoinUrl = "";
+  inviteForm.rtcPassword = "";
   inviteForm.comment = "";
 };
 
@@ -202,15 +316,24 @@ const submitInvite = async () => {
     ElMessage.error("投递记录ID不存在");
     return;
   }
-  if (!currentRow.value?.userId) {
-    ElMessage.error("投递记录缺少面试者ID，无法发送通知");
+  if (
+    !Array.isArray(inviteForm.interviewTimeRange) ||
+    inviteForm.interviewTimeRange.length !== 2
+  ) {
+    ElMessage.warning("请选择完整的面试时间范围");
     return;
   }
-  if (!inviteForm.interviewTime) {
-    ElMessage.warning("请选择面试时间");
+  if (!inviteForm.interviewerIds.length) {
+    ElMessage.warning("请至少选择一个面试官");
     return;
   }
-  if (!inviteForm.interviewAddress?.trim()) {
+
+  if (inviteForm.interviewType === 1) {
+    if (!inviteForm.rtcPlatform) {
+      ElMessage.warning("请选择会议平台");
+      return;
+    }
+  } else if (!inviteForm.interviewAddress.trim()) {
     ElMessage.warning("请输入面试地址");
     return;
   }
@@ -219,28 +342,28 @@ const submitInvite = async () => {
   try {
     await addInterviewNotice({
       jobApplicationId: currentRow.value.id,
-      intervieweeId: currentRow.value.userId,
-      companyId: query.companyId,
-      interviewTime: inviteForm.interviewTime,
-      interviewAddress: inviteForm.interviewAddress.trim(),
+      interviewType: inviteForm.interviewType,
+      interviewStartTime: inviteForm.interviewTimeRange[0],
+      interviewEndTime: inviteForm.interviewTimeRange[1],
+      interviewAddress:
+        inviteForm.interviewType === 0
+          ? inviteForm.interviewAddress.trim()
+          : "",
+      rtcPlatform:
+        inviteForm.interviewType === 1 ? inviteForm.rtcPlatform : null,
+      rtcRoomId:
+        inviteForm.interviewType === 1 ? inviteForm.rtcRoomId.trim() : "",
+      rtcRoomName:
+        inviteForm.interviewType === 1 ? inviteForm.rtcRoomName.trim() : "",
+      rtcJoinUrl:
+        inviteForm.interviewType === 1 ? inviteForm.rtcJoinUrl.trim() : "",
+      rtcPassword:
+        inviteForm.interviewType === 1 ? inviteForm.rtcPassword.trim() : "",
       comment: inviteForm.comment?.trim() || "",
+      interviewerIds: inviteForm.interviewerIds,
     });
 
-    try {
-      await reviewJobApplication({
-        id: currentRow.value.id,
-        status: 4,
-        remarks: currentRow.value?.remarks || "",
-      });
-    } catch (e) {
-      ElMessage.warning(
-        e?.message ||
-          "面试通知已发送，但更新投递状态为“面试中”失败，请到投递记录中手动处理",
-      );
-      return;
-    }
-
-    ElMessage.success("面试通知发送成功，投递状态已更新为面试中");
+    ElMessage.success("面试通知发送成功");
     detailVisible.value = false;
     fetchList();
   } catch (e) {
@@ -252,6 +375,7 @@ const submitInvite = async () => {
 
 onMounted(() => {
   fetchList();
+  fetchInterviewers();
 });
 </script>
 

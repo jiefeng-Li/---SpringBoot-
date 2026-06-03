@@ -40,10 +40,22 @@
           <span>面试管理</span>
         </template>
         <el-menu-item
+          index="/recruiter/interview-records"
+          :disabled="!isCompanyBound"
+        >
+          面试记录
+        </el-menu-item>
+        <el-menu-item
           index="/recruiter/invite-interview"
           :disabled="!isCompanyBound"
         >
           邀约面试
+        </el-menu-item>
+        <el-menu-item
+          index="/recruiter/join-interview"
+          :disabled="!isCompanyBound"
+        >
+          参加面试
         </el-menu-item>
         <el-menu-item index="/recruiter/send-offer" :disabled="!isCompanyBound">
           发送Offer

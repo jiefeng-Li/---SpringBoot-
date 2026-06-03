@@ -77,27 +77,48 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
         return page;
     }
 
+/**
+ * 获取职位申请列表
+ * @param jobApplicationPageDto 职位申请分页参数
+ * @return 返回分页后的职位申请列表
+ */
     @Override
     public Page<JobApplicationVo> getJobApplicationList(JobApplicationPageDto jobApplicationPageDto) {
+    // 创建分页对象，设置当前页码和每页大小
         Page<JobApplicationVo> page = new Page<>(jobApplicationPageDto.getPageNum(), jobApplicationPageDto.getPageSize());
+    // 调用Mapper查询职位申请分页数据
         jobApplicationMapper.getJobApplicationPage(page, jobApplicationPageDto);
+    // 遍历分页结果，为每个申请添加简历信息
         for (JobApplicationVo apply : page.getRecords()) {
+        // 根据简历ID查询简历信息
             ResumeVo resume = resumeMapper.selectVoById(apply.getResumeId());
+        // 如果简历存在，则设置到申请对象中
             if (resume != null)
                 apply.setResume(resume);
         }
+    // 返回包含完整信息的分页结果
         return page;
     }
 
+/**
+ * 添加职位申请的方法
+ * @param addJobApplicationDto 包含职位申请信息的DTO对象
+ */
     @Override
     public void addJobApplication(AddJobApplicationDto addJobApplicationDto) {
         JobPosition job = jobPositionMapper.selectById(addJobApplicationDto.getJobPositionId());
         Company comp = companyMapper.selectById(addJobApplicationDto.getCompanyId());
+    // 检查公司是否被封禁，如果被封禁则抛出异常
         ThrowUtil.throwIfTrue(comp.getStatus() == CompanyStatusEnum.BANED.getStatus(), ErrorEnum.NOT_FOUND_ERROR, "公司已被封禁");
+    // 检查职位是否存在或已被删除，如果存在则抛出异常
         ThrowUtil.throwIfTrue(job == null || job.getIsDeleted() == 1, ErrorEnum.PARAMS_ERROR, "职位不存在");
+    // 检查职位是否在招聘状态，如果不在招聘状态则抛出异常
         ThrowUtil.throwIfTrue(job.getStatus() != JobPositionStatusEnum.RECRUITING, ErrorEnum.PARAMS_ERROR, "职位不在招聘状态");
+    // 检请的公司ID与职位中的公司ID是否一致，如果不一致则抛出异常
         ThrowUtil.throwIfTrue(!Objects.equals(job.getCompanyId(), addJobApplicationDto.getCompanyId()), ErrorEnum.PARAMS_ERROR, "公司ID错误");
+    // 创建新的职位申请对象
         JobApplication jobApplication = new JobApplication();
+    // 检查用户是否已经申请过该职位，如果申请过且状态为已查看、待处理、面试中、已录用或已发offer，则抛出异常
         ThrowUtil.throwIfTrue(jobApplicationMapper.exists(new LambdaQueryWrapper<JobApplication>()
                         .eq(JobApplication::getJobPositionId, addJobApplicationDto.getJobPositionId())
                         .eq(JobApplication::getUserId, addJobApplicationDto.getUserId())
@@ -108,8 +129,11 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
                                 JobApplicationStatusEnum.HIRED,
                                 JobApplicationStatusEnum.OFFER_SENT)),
                 ErrorEnum.PARAMS_ERROR, "已投递过该职位");
+    // 将DTO中的属性复制到职位申请对象中
         BeanUtils.copyProperties(addJobApplicationDto, jobApplication);
+    // 设置申请状态为"待处理"
         jobApplication.setStatus(JobApplicationStatusEnum.PENDING.getStatus());
+    // 将职位申请信息插入数据库
         jobApplicationMapper.insert(jobApplication);
     }
 

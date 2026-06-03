@@ -3,6 +3,7 @@ package com.cuit.interviewsystem.utils;
 import com.aliyun.oss.ClientException;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSException;
+import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.PutObjectResult;
 import com.cuit.interviewsystem.config.AliOSSConfig;
@@ -34,13 +35,13 @@ public class AliOSSUtil {
      * @return 上传后的文件地址
      * @throws IOException
      */
-    public String uploadFile(MultipartFile file, String prefix) throws IOException {
+    public String uploadFile(MultipartFile file, @Deprecated String prefix) throws IOException {
         if (file == null) {
             return null;
         }
         String fileName = file.getOriginalFilename();
         String suffix = fileName.substring(fileName.lastIndexOf("."));
-        String newFileName = prefix + UUID.randomUUID().toString().replace("-", "");
+        String newFileName = UUID.randomUUID().toString().replace("-", "");
 //        file.transferTo(new File("../../templates" + newFileName + suffix));
         //获取文件的后缀，产生以为不重复的名称
         //调用阿里云的SDK上传至OSS
@@ -48,7 +49,7 @@ public class AliOSSUtil {
                 file.getInputStream());
 
         // 上传文件。
-        PutObjectResult result = ossClient.putObject(putObjectRequest);
+        ossClient.putObject(putObjectRequest);
         return "https://" + aliOSSConfig.getBucketName() + "." + aliOSSConfig.getEndpoint() + "/" + newFileName + suffix;
     }
 

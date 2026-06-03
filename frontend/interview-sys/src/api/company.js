@@ -48,6 +48,14 @@ export const getCompanyStatusList = () => {
   })
 }
 
+export const getCompanyUserList = (params) => {
+  return request({
+    method: 'get',
+    url: '/company/user/list',
+    params
+  })
+}
+
 export const updateCompanyStatus = (id, data) => {
   return request({
     method: 'put',

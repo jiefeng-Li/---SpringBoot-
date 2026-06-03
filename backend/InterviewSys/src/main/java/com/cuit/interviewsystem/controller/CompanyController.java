@@ -7,11 +7,14 @@ import com.cuit.interviewsystem.common.Result;
 import com.cuit.interviewsystem.exception.BusinessException;
 import com.cuit.interviewsystem.exception.ErrorEnum;
 import com.cuit.interviewsystem.model.dto.company.*;
+import com.cuit.interviewsystem.model.dto.user.UserPageDto;
 import com.cuit.interviewsystem.model.enums.CompanyStatusEnum;
 import com.cuit.interviewsystem.model.enums.UserRoleEnum;
 import com.cuit.interviewsystem.model.vo.CompanyVo;
 import com.cuit.interviewsystem.model.vo.PageVo;
+import com.cuit.interviewsystem.model.vo.UserVo;
 import com.cuit.interviewsystem.service.CompanyService;
+import com.cuit.interviewsystem.service.UserService;
 import com.cuit.interviewsystem.utils.JWTUtil;
 import com.cuit.interviewsystem.utils.RedisUtil;
 import com.cuit.interviewsystem.utils.ThrowUtil;
@@ -34,6 +37,8 @@ import java.util.concurrent.TimeUnit;
 public class CompanyController {
     @Resource
     private CompanyService companyService;
+    @Resource
+    private UserService userService;
     @Resource
     private JWTUtil jwtUtil;
     @Resource
@@ -98,6 +103,33 @@ public class CompanyController {
             redisUtil.set(cacheKey, result, 30, TimeUnit.MINUTES);
             log.info("公司列表已存入Redis缓存: {}", cacheKey);
         }
+        return Result.success(result);
+    }
+
+    @GetMapping("/user/list")
+    @AuthCheck(roles = {UserRoleEnum.RECRUITER, UserRoleEnum.COMP_ADMIN})
+    public Result<PageVo<UserVo>> getCompanyUserList(CompanyUserPageDto dto) {
+        String companyIdStr = jwtUtil.getLoginUserInfo(JWTUtil.ELEMENT.COMPANY_ID);
+        ThrowUtil.throwIfTrue(companyIdStr == null, ErrorEnum.PARAMS_ERROR, "当前用户未绑定公司");
+
+        UserPageDto query = new UserPageDto();
+        query.setPageNum(dto.getPageNum());
+        query.setPageSize(dto.getPageSize());
+        query.setCompanyId(Long.parseLong(companyIdStr));
+        query.setRole(dto.getRole() == null ? UserRoleEnum.RECRUITER.getValue() : dto.getRole());
+        query.setIsDeleted(0);
+
+        Page<com.cuit.interviewsystem.model.entity.User> users = userService.getUsers(query);
+        PageVo<UserVo> result = new PageVo<>();
+        result.setPageSize(users.getSize());
+        result.setPages(users.getPages());
+        result.setPageNum(users.getCurrent());
+        result.setTotal(users.getTotal());
+        result.setList(users.getRecords().stream().map(user -> {
+            UserVo vo = UserVo.objToVo(user);
+            vo.setCompanyName(companyService.getCompanyById(user.getCompanyId()).getCompanyName());
+            return vo;
+        }).toList());
         return Result.success(result);
     }
 

@@ -13,6 +13,7 @@ import com.cuit.interviewsystem.model.entity.User;
 import com.cuit.interviewsystem.model.enums.UserRoleEnum;
 import com.cuit.interviewsystem.model.vo.JobPositionVo;
 import com.cuit.interviewsystem.model.vo.PageVo;
+import com.cuit.interviewsystem.service.JobRecommendationService;
 import com.cuit.interviewsystem.service.CompanyService;
 import com.cuit.interviewsystem.service.JobPositionService;
 import com.cuit.interviewsystem.service.UserService;
@@ -24,6 +25,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -37,6 +39,8 @@ public class JobPositionController {
     private CompanyService companyService;
     @Resource
     private UserService userService;
+    @Resource
+    private JobRecommendationService jobRecommendationService;
 
 
     @PostMapping("")
@@ -92,28 +96,71 @@ public class JobPositionController {
                 Result.error(ErrorEnum.SYSTEM_ERROR) : Result.success("更新成功");
     }
 
+/**
+ * 获取职位列表接口
+ * @param jobSearchPageDto 职位搜索分页参数DTO
+ * @return 返回分页后的职位列表数据
+ */
     @GetMapping("/list")
     public Result<PageVo<JobPositionVo>> getJobPositionList(@Valid JobSearchPageDto jobSearchPageDto){
-        //TODO 使用xml的sql优化
+    // 调用服务层获取职位列表数据
         Page<JobPosition> res = jobPositionService.getJobPositionList(jobSearchPageDto);
+    // 创建新的分页对象用于返回结果
         Page<JobPositionVo> r = new Page<>();
+    // 获取查询结果中的记录列表
         List<JobPosition> records = res.getRecords();
         List<JobPositionVo> list = new ArrayList<>();
+    // 遍历职位记录列表
         for (JobPosition record : records) {
+        // 将实体对象转换为VO对象
             JobPositionVo jobPositionVo = JobPositionVo.objToVo(record);
             if (jobPositionVo != null) {
+            // 设置公司名称
                 jobPositionVo.setCompanyName(companyService.getCompanyById(record.getCompanyId()).getCompanyName());
+            // 获取招聘经理信息
                 User hr = userService.getById(record.getHiringManagerId());
+            // 设置招聘经理姓名和头像
                 jobPositionVo.setHiringManagerName(hr.getUsername());
                 jobPositionVo.setHiringManagerAvatar(hr.getAvatarUrl());
+            // 将处理后的VO对象添加到列表中
                 list.add(jobPositionVo);
             }
         }
+    // 复制分页属性，但不复制records属性
         BeanUtils.copyProperties(res, r, "records");
+    // 设置处理后的记录列表
         r.setRecords(list);
+    // 返回成功响应，包含分页数据
         return Result.success(PageVo.of(r));
     }
 
-
-
+    @GetMapping("/recommendations")
+    @AuthCheck
+    public Result<List<JobPositionVo>> getRecommendedJobs(@RequestParam(required = false, defaultValue = "8") Integer limit) {
+        List<JobPositionVo> jobs = jobRecommendationService.recommendJobsForCurrentUser(limit);
+        if (jobs == null || jobs.isEmpty()) {
+            JobSearchPageDto dto = new JobSearchPageDto();
+            dto.setPageNum(1L);
+            dto.setPageSize(Long.valueOf(limit));
+            Result<PageVo<JobPositionVo>> res = getJobPositionList(dto);
+            PageVo<JobPositionVo> data = (PageVo<JobPositionVo>) res.getData();
+            return Result.success(data.getList());
+        }
+        for (JobPositionVo job : jobs) {
+            if (job.getCompanyId() != null) {
+                var company = companyService.getCompanyById(job.getCompanyId());
+                if (company != null) {
+                    job.setCompanyName(company.getCompanyName());
+                }
+            }
+            if (job.getHiringManagerId() != null) {
+                User hr = userService.getById(job.getHiringManagerId());
+                if (hr != null) {
+                    job.setHiringManagerName(hr.getUsername());
+                    job.setHiringManagerAvatar(hr.getAvatarUrl());
+                }
+            }
+        }
+        return Result.success(jobs);
+    }
 }

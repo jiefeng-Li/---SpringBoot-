@@ -259,7 +259,8 @@ public class UserController {
         UserVo resVo = UserVo.objToVo(res);
         if (resVo == null)
             return Result.error(ErrorEnum.NOT_FOUND_ERROR.getCode(), "更新失败，用户不存在");
-        resVo.setCompanyName(companyService.getCompanyById(res.getCompanyId()).getCompanyName());
+        if (res.getCompanyId() != null)
+            resVo.setCompanyName(companyService.getCompanyById(res.getCompanyId()).getCompanyName());
         redisUtil.set("userId=" + resVo.getUserId(), resVo);
         return Result.success(resVo);
     }

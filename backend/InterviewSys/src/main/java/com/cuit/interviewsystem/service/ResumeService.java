@@ -24,5 +24,7 @@ public interface ResumeService extends IService<Resume> {
 
     ResumeVo getResumeById(Long id);
 
+    ResumeVo getDefaultResumeByUserId(Long userId);
+
     void updateResume(AddResumeDto resume, Long id, MultipartFile avatar);
 }

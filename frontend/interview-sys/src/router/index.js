@@ -109,6 +109,11 @@ const router = createRouter({
           component: () => import('@/views/recruiter/components/InviteInterview.vue')
         },
         {
+          path: 'join-interview',
+          name: 'RecruiterJoinInterview',
+          component: () => import('@/views/recruiter/components/JoinInterview.vue')
+        },
+        {
           path: 'send-offer',
           name: 'SendOffer',
           component: () => import('@/views/recruiter/components/SendOffer.vue')
@@ -166,6 +171,16 @@ const router = createRouter({
       component: () => import('@/api/ApiTest.vue')
     },
     {
+      path: '/meeting/trtc',
+      name: 'TrtcIframeMeeting',
+      component: () => import('@/views/meeting/TrtcIframeRoom.vue')
+    },
+    {
+      path: '/meeting/mock-interview',
+      name: 'MockInterview',
+      component: () => import('@/views/meeting/MockInterview.vue')
+    },
+    {
       path: '/personal',
       name: 'Personal',
       component: () => import('@/views/personal/index.vue'),
@@ -184,6 +199,11 @@ const router = createRouter({
             path: '/personal/message',
             name: 'PersonalMessage',
             component: () => import('@/views/personal/components/PersonalMessage.vue')
+          },
+          {
+            path: '/personal/interview',
+            name: 'PersonalInterview',
+            component: () => import('@/views/personal/components/InterviewNoticeList.vue')
           },
           {
             path: '/personal/settings',
